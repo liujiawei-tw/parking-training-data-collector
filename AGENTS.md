@@ -2,19 +2,46 @@
 
 ## Goal
 
-以新北市官方免費即時資料持續累積新莊區停車觀測，提供主專案讀取最新資料。使用者是初階後端工程師與 Sponsor；解釋設計與驗證時包含面試官角度。
+This repository collects New Taipei City parking data and turns it into daily CSV datasets for machine-learning training.
+
+The long-term product goal is to train models that estimate parking availability near a destination when a driver arrives. This repo is the lightweight data collection pipeline only. It is not a public parking API, not a web service, and not a database-backed application.
+
+## Current Architecture
+
+- GitHub Actions runs `collect.yml` every 5 minutes.
+- Each collect run fetches Xinzhuang roadside and offstreet parking data.
+- The collector appends ML-ready rows to Taiwan-date CSV files.
+- rclone uploads daily CSV files to Google Drive.
+- `export-daily.yml` runs daily at `00:10 Asia/Taipei`, builds the previous Taiwan day's ZIP, uploads the ZIP/manifest to Google Drive, and emails the ZIP.
+- Google Drive is the long-term data store. GitHub stores source code and workflow definitions only.
 
 ## Constraints
 
-- 保留來源原始狀態碼與取得時間；官方來源未提供更新時間時，不把系統取得時間冒充來源更新時間。
-- `AVAILABLECAR=-9` 代表來源未提供即時剩餘位，不得解讀為零位。
-- 路邊是否可合法停放的狀態碼尚未核對，不自行把 `parkingstatus` 或 `cellstatus` 映射成有位。
-- 以 `areacode=65000050` 限定路邊新莊區；路外以基本資料 `AREA=新莊區` 的 ID 篩選。
-- 來源 API 必須分頁；失敗頁不可儲存為完整快照。限制擷取頻率，遵守官方高頻介接提醒。
-- 不把原始資料、H2 資料庫、金鑰或本機設定提交 Git。
+- Do not add MySQL, H2, SQLite, JPA, JDBC storage, or a long-running server unless the user explicitly changes direction.
+- Do not reintroduce the old Spring web API or database schema.
+- Do not commit generated CSV, ZIP, logs, local data files, rclone config, Gmail app passwords, tokens, or other secrets.
+- Keep generated data under `data/` locally; this path is Git-ignored.
+- Keep workflow secrets in GitHub Repository Secrets only.
+- Preserve source raw fields. Do not replace raw source status values with derived labels.
+- Official feeds do not expose per-row source update timestamps. `collected_at_utc` is the collector's observation time, not an official update time.
+- `AVAILABLECAR` negative values must be treated as unknown, not zero.
+- Roadside availability labels are provisional. Current rule is `parkingstatus=0 -> true`, `parkingstatus=1 -> false`, other values blank. Keep `parking_status_raw` and `cell_status_raw` so the rule can be corrected later.
+- Roadside rows must remain filtered to Xinzhuang by `areacode=65000050`.
+- Offstreet rows must be built by matching Xinzhuang lot metadata where `AREA=新莊區` against live availability by `ID`.
+- Source API reads must remain paginated and bounded by safe page limits.
 
 ## Source of Truth
 
-- `docs/data-contract.md`：資料欄位與狀態處理。
-- `docs/setup.md`：啟動、限制及驗證。
-- 主專案 `taiwan-parking-forecast` 的產品需求與預測定義仍由其文件管理；此 repo 不自行改動產品目標。
+- `README.md`: project purpose, data flow, Google Drive layout, workflow schedule, secrets, and full output column descriptions.
+- `docs/data-contract.md`: concise machine-readable data contract for CSV, ZIP, and manifest files.
+- `docs/setup.md`: setup notes for GitHub Actions, Google Drive, rclone, and secrets.
+- `.github/workflows/collect.yml`: 5-minute collection workflow.
+- `.github/workflows/export-daily.yml`: daily ZIP/email workflow.
+
+## Maintenance Notes
+
+- Prefer small, explicit changes. This pipeline should stay simple.
+- If adding new ML features, keep the old raw fields and document every new derived column in both `README.md` and `docs/data-contract.md`.
+- If label logic changes, update the `label_rule` value and document the version/meaning clearly.
+- If workflow behavior changes, verify with a manual `workflow_dispatch` run before relying on scheduled runs.
+- The default branch is currently `feature/collect-parking-data`; scheduled workflows run from the default branch.
