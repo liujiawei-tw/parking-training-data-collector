@@ -1,23 +1,135 @@
-# 停車資料收集器
+# Parking Training Data Collector
 
-此獨立 repository 用新北市政府資料開放平臺的即時資料，累積新莊區路邊格位狀態與公有路外停車場剩餘汽車位數，並提供主專案讀取最新觀測的內部 API。
+This project collects New Taipei City parking data for machine-learning training datasets.
+It does not run a public parking API and does not use a database.
 
-## 專案邊界
+## Current Design
 
-- 收集並保存來源原始狀態碼、格位／停車場 ID、取得時間；不在此服務預測或宣稱保證有位。
-- 路邊只保留新莊區（`areacode=65000050`）；路外以新北市路外公共停車場基本資料的 `AREA=新莊區` 對應即時資料的 `ID`。
-- 來源 API 以分頁取得，收集失敗時保留既有資料，記錄失敗。相同狀態只更新最後看見時間；狀態改變時留下事件，供後續重建歷史。
-- 第一版採 Java 21、Spring Boot、Spring JDBC 與本機 H2 檔案資料庫，以便立即開始累積。未來部署時再評估 MySQL 與持續運行環境。
+- GitHub Actions runs the collector every 5 minutes.
+- Each run fetches Xinzhuang roadside and offstreet parking data from New Taipei City Open Data.
+- Rows are converted into ML-ready daily CSV files.
+- CSV files are stored in Google Drive through rclone.
+- A daily workflow builds a ZIP for the previous Taiwan calendar day and emails it.
 
-## 官方來源
+Google Drive is the long-term data store. GitHub stores only code and workflow definitions.
 
-- [新北市路邊停車空位查詢](https://data.ntpc.gov.tw/datasets/54A507C4-C038-41B5-BF60-BBECB9D052C6)
-- [新北市公有路外停車場即時賸餘車位數](https://data.ntpc.gov.tw/datasets/e09b35a5-a738-48cc-b0f5-570b67ad9c78)
-- [新北市路外公共停車場資訊](https://data.ntpc.gov.tw/datasets/B1464EF0-9C7C-4A6F-ABF7-6BDF32847E68)
-- [新北市資料開放平臺開發指引](https://data.ntpc.gov.tw/applications)
+## Google Drive Layout
 
-## 開發流程
+The rclone remote should point at the `parking-training-data` folder as its root.
 
-`main` 保存已驗證的基底；`feature/collect-parking-data` 開發及檢查收集器，再經自我審查合併。資料檔與本機設定不提交 Git。此 repository 目前只有本機 Git，沒有 GitHub 遠端。
+```text
+parking-training-data/
+  daily/
+    roadside/
+      roadside_training_samples_2026-09-23.csv
+    offstreet/
+      offstreet_training_samples_2026-09-23.csv
+  exports/
+    parking-training-2026-09-23.zip
+  manifests/
+    manifest_2026-09-23.json
+```
 
-啟動與 API 使用方式見 `docs/setup.md`；欄位與失敗處理見 `docs/data-contract.md`。
+## Commands
+
+Collect one batch and append it to today's Taiwan-date CSV files:
+
+```powershell
+java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar collect
+```
+
+Build and email the previous Taiwan-date export:
+
+```powershell
+java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar export-daily yesterday
+```
+
+Build and email a specific date:
+
+```powershell
+java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar export-daily 2026-09-23
+```
+
+## GitHub Secrets
+
+Create these in the GitHub repository:
+
+`Settings` -> `Secrets and variables` -> `Actions` -> `New repository secret`
+
+For each row below, put the left value into GitHub's `Name` field and the right value into GitHub's `Secret` field.
+Do not paste the whole table row.
+
+| Secret | Value |
+| --- | --- |
+| `GDRIVE_RCLONE_CONFIG` | Full contents of `rclone.conf`. Do not paste it into chat or commit it. |
+| `GDRIVE_REMOTE_NAME` | `gdrive` |
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USERNAME` | Gmail address used to send mail. |
+| `SMTP_PASSWORD` | Gmail App Password, not the normal Google account password. |
+| `EXPORT_MAIL_FROM` | Gmail address used to send mail. |
+| `EXPORT_MAIL_TO` | `x0976117735@gmail.com` |
+
+The current target Google Drive folder is `parking-training-data`.
+Use the actual folder ID shown in the folder URL after opening it:
+
+```text
+1c4KBGVdLXDi_FlmP8Q8WAq0TSZCuoA6u
+```
+
+The rclone config should already include this as `root_folder_id`.
+
+## Dataset Notes
+
+The daily CSV files keep raw source status fields and add basic training features:
+
+- UTC collection timestamp
+- Taiwan calendar date
+- Taiwan weekday, hour, and 5-minute bucket
+- source identifiers
+- parking status raw fields
+- simple availability labels
+
+Roadside `is_available` is derived from `parkingstatus` with the current rule:
+
+```text
+0 -> true
+1 -> false
+other -> blank
+```
+
+The raw fields are preserved so the label rule can be corrected later without losing source data.
+
+Offstreet `available_car_raw` is preserved. Negative values are treated as unknown for numeric training columns.
+
+## rclone Setup Summary
+
+Use rclone on your own computer once to authorize Google Drive.
+
+```powershell
+rclone config
+```
+
+Recommended answers:
+
+- New remote name: `gdrive`
+- Storage: Google Drive
+- Scope: full Drive access
+- Service account file: leave blank
+- Advanced config: yes
+- Root folder ID: `1c4KBGVdLXDi_FlmP8Q8WAq0TSZCuoA6u`
+- Auto config: yes
+
+After authorization, test:
+
+```powershell
+rclone lsd gdrive:
+```
+
+Then find the config file:
+
+```powershell
+rclone config file
+```
+
+Copy the full `rclone.conf` content into GitHub Secret `GDRIVE_RCLONE_CONFIG`.

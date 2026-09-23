@@ -1,0 +1,54 @@
+name: Collect parking training data
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: parking-training-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+
+      - name: Configure rclone
+        shell: bash
+        env:
+          GDRIVE_RCLONE_CONFIG: ${{ secrets.GDRIVE_RCLONE_CONFIG }}
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+
+      - name: Download existing daily CSV files
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          rclone copy "${GDRIVE_REMOTE_NAME:-gdrive}:daily" data/daily --create-empty-src-dirs || true
+
+      - name: Build collector
+        run: mvn -q -DskipTests package
+
+      - name: Collect one batch
+        run: java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar collect
+
+      - name: Upload daily CSV files
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          rclone copy data/daily "${GDRIVE_REMOTE_NAME:-gdrive}:daily" --create-empty-src-dirs

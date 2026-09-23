@@ -1,0 +1,62 @@
+name: Export daily parking training data
+
+on:
+  schedule:
+    - cron: "10 16 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: parking-training-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+
+      - name: Configure rclone
+        shell: bash
+        env:
+          GDRIVE_RCLONE_CONFIG: ${{ secrets.GDRIVE_RCLONE_CONFIG }}
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+
+      - name: Download daily CSV files
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          rclone copy "${GDRIVE_REMOTE_NAME:-gdrive}:daily" data/daily --create-empty-src-dirs
+
+      - name: Build collector
+        run: mvn -q -DskipTests package
+
+      - name: Build ZIP and send email
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EXPORT_MAIL_FROM: ${{ secrets.EXPORT_MAIL_FROM }}
+          EXPORT_MAIL_TO: ${{ secrets.EXPORT_MAIL_TO }}
+        run: java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar export-daily yesterday
+
+      - name: Upload ZIP and manifest
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          rclone copy data/exports "${GDRIVE_REMOTE_NAME:-gdrive}:exports" --create-empty-src-dirs
+          rclone copy data/manifests "${GDRIVE_REMOTE_NAME:-gdrive}:manifests" --create-empty-src-dirs

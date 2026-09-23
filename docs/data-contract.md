@@ -1,18 +1,106 @@
-# 資料契約 v0.1
+# Data Contract v0.2
 
-## 來源與主鍵
+The exported files are daily CSV training datasets.
+File dates use `Asia/Taipei`; collection timestamps are stored in UTC.
 
-路邊來源為新北市路邊停車空位查詢；格位原始 ID 採 `id`，同時保留 `cellid`、`roadid`、`roadname`、`name`、`parkingstatus`、`cellstatus`、`latitude`、`longitude` 與 `areacode`。只接收 `areacode=65000050`。第一次完整擷取時保存所有格位；之後只有狀態碼變動才寫事件，仍更新格位的 `last_seen_at`。
+## Roadside File
 
-路外基本資料來源為新北市路外公共停車場資訊；以 `AREA=新莊區` 找到停車場 `ID`、名稱、地址、總汽車位與 TWD97 坐標。路外即時資料來源以相同 `ID` 對應 `AVAILABLECAR`；保留原始值，`-9` 不轉為零。
+File name:
 
-## 時間
+```text
+roadside_training_samples_yyyy-MM-dd.csv
+```
 
-兩個即時資料集的公開欄位都未顯示逐筆來源更新時間。`collected_at` 是收集器收到完整資料後的系統時間；`source_updated_at` 保持未知。API 不能把 `collected_at` 標成官方車位更新時間。
+Columns:
 
-## 資料完整性
+```text
+collected_at_utc
+collected_date_taipei
+weekday_taipei
+hour_taipei
+minute_bucket_taipei
+source
+area_code
+spot_id
+cell_id
+road_id
+road_name
+spot_type
+latitude
+longitude
+parking_status_raw
+cell_status_raw
+is_available
+label_rule
+```
 
-- 每種來源所有分頁必須成功後才寫入；分頁回傳重複主鍵、跨區資料或超過安全上限時該次擷取失敗。
-- 路外即時資料必須先與新莊區基本資料 ID 比對。全市資料中可能有重複 ID；非新莊區的重複不影響本區擷取，新莊區內重複會讓該次擷取失敗。
-- `run` 紀錄開始／結束時間、來源、筆數與成功失敗；讀取 API 顯示最近成功擷取時間。
-- 只有歷史事件不足以判定使用者抵達時是否有位。主專案需另行核對狀態碼、格位資格、位置及資料新鮮度，並定義預測區域。
+Rows are filtered to Xinzhuang by `areacode=65000050`.
+
+Current roadside label rule:
+
+```text
+parkingstatus 0 -> is_available true
+parkingstatus 1 -> is_available false
+other values -> blank
+```
+
+The raw status fields are preserved because the rule may need to be corrected after validating the official status values.
+
+## Offstreet File
+
+File name:
+
+```text
+offstreet_training_samples_yyyy-MM-dd.csv
+```
+
+Columns:
+
+```text
+collected_at_utc
+collected_date_taipei
+weekday_taipei
+hour_taipei
+minute_bucket_taipei
+source
+lot_id
+lot_name
+address
+total_car
+tw97_x
+tw97_y
+available_car_raw
+available_car
+availability_ratio
+is_unknown
+label_rule
+```
+
+Rows are built by matching Xinzhuang public offstreet lot metadata with the citywide live availability feed.
+
+`available_car_raw` is preserved.
+Negative values are treated as unknown for numeric training columns:
+
+```text
+available_car = blank
+availability_ratio = blank
+is_unknown = true
+```
+
+## Daily ZIP
+
+File name:
+
+```text
+parking-training-yyyy-MM-dd.zip
+```
+
+Contents:
+
+```text
+roadside_training_samples_yyyy-MM-dd.csv
+offstreet_training_samples_yyyy-MM-dd.csv
+manifest_yyyy-MM-dd.json
+```
+
+The manifest records the dataset date, generation time, file names, row counts, timezone, and schema version.
