@@ -1,0 +1,10 @@
+.idea/
+.env
+.env.*
+!.env.example
+target/
+data/
+*.log
+*.pid
+*.key
+*.pem
