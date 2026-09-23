@@ -37,6 +37,7 @@ The long-term product goal is to train models that estimate parking availability
 - `docs/setup.md`: setup notes for GitHub Actions, Google Drive, rclone, and secrets.
 - `.github/workflows/collect.yml`: 5-minute collection workflow.
 - `.github/workflows/export-daily.yml`: daily ZIP/email workflow.
+- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor.
 
 ## Maintenance Notes
 
@@ -44,4 +45,4 @@ The long-term product goal is to train models that estimate parking availability
 - If adding new ML features, keep the old raw fields and document every new derived column in both `README.md` and `docs/data-contract.md`.
 - If label logic changes, update the `label_rule` value and document the version/meaning clearly.
 - If workflow behavior changes, verify with a manual `workflow_dispatch` run before relying on scheduled runs.
-- The default branch is currently `feature/collect-parking-data`; scheduled workflows run from the default branch.
+- The default branch is `main`; scheduled workflows run from the default branch.

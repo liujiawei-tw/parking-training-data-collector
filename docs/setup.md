@@ -85,3 +85,10 @@ build previous day's ZIP
 email ZIP
 upload ZIP and manifest to Google Drive
 ```
+
+`monitor.yml` runs every 30 minutes:
+
+```text
+list latest roadside/offstreet CSV files in Google Drive
+fail if either source has not been updated within 45 minutes
+```

@@ -33,6 +33,7 @@ GitHub Actions schedule
 - Rows are appended to Taiwan-date daily CSV files.
 - CSV files are stored in Google Drive through rclone.
 - A daily workflow builds a ZIP for the previous Taiwan calendar day and emails it.
+- A monitor workflow checks Google Drive freshness every 30 minutes.
 - GitHub stores code and workflow definitions only; generated data belongs in Google Drive.
 
 ## Data Sources
@@ -84,7 +85,7 @@ Rows are filtered to Xinzhuang by `areacode=65000050`.
 
 | Column | Meaning | ML usage |
 | --- | --- | --- |
-| `collected_at_utc` | UTC time when this collector finished fetching the batch. | Time index; do not treat as official source update time. |
+| `collected_at_utc` | UTC time captured when `collectOnce()` starts, before source API requests. | Time index; do not treat as official source update time. |
 | `collected_date_taipei` | Taiwan calendar date for the collection time. | Partition key and date feature. |
 | `weekday_taipei` | Day of week in Taiwan time, `1=Monday` to `7=Sunday`. | Time feature. |
 | `hour_taipei` | Hour of day in Taiwan time, `0` to `23`. | Time feature. |
@@ -125,7 +126,7 @@ Rows are built by matching Xinzhuang public offstreet lot metadata with the city
 
 | Column | Meaning | ML usage |
 | --- | --- | --- |
-| `collected_at_utc` | UTC time when this collector finished fetching the batch. | Time index; do not treat as official source update time. |
+| `collected_at_utc` | UTC time captured when `collectOnce()` starts, before source API requests. | Time index; do not treat as official source update time. |
 | `collected_date_taipei` | Taiwan calendar date for the collection time. | Partition key and date feature. |
 | `weekday_taipei` | Day of week in Taiwan time, `1=Monday` to `7=Sunday`. | Time feature. |
 | `hour_taipei` | Hour of day in Taiwan time, `0` to `23`. | Time feature. |
@@ -202,6 +203,14 @@ Asia/Taipei 00:10 every day
 ```
 
 The daily export sends the previous Taiwan calendar day's ZIP.
+
+Freshness monitor workflow:
+
+```text
+every 30 minutes
+```
+
+The monitor fails if either roadside or offstreet CSV files have not been updated within 45 minutes.
 
 ## Commands
 

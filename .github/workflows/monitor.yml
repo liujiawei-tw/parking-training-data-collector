@@ -1,0 +1,67 @@
+name: Monitor parking data freshness
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: parking-training-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+
+      - name: Configure rclone
+        shell: bash
+        env:
+          GDRIVE_RCLONE_CONFIG: ${{ secrets.GDRIVE_RCLONE_CONFIG }}
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s' "$GDRIVE_RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+
+      - name: Check latest CSV update time
+        shell: bash
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          set -euo pipefail
+          remote="${GDRIVE_REMOTE_NAME:-gdrive}"
+          mkdir -p monitor
+          rclone lsjson "$remote:daily/roadside" --files-only > monitor/roadside.json
+          rclone lsjson "$remote:daily/offstreet" --files-only > monitor/offstreet.json
+
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          threshold_minutes = 45
+          now = datetime.now(timezone.utc)
+
+          def latest(path):
+              rows = json.loads(Path(path).read_text(encoding="utf-8"))
+              files = [row for row in rows if row.get("Name", "").endswith(".csv")]
+              if not files:
+                  raise SystemExit(f"No CSV files found in {path}")
+              files.sort(key=lambda row: row["ModTime"], reverse=True)
+              newest = files[0]
+              mod_time = datetime.fromisoformat(newest["ModTime"].replace("Z", "+00:00"))
+              age_minutes = (now - mod_time).total_seconds() / 60
+              print(f"{path}: {newest['Name']} updated {age_minutes:.1f} minutes ago")
+              if age_minutes > threshold_minutes:
+                  raise SystemExit(
+                      f"{newest['Name']} is stale: {age_minutes:.1f} minutes old, "
+                      f"threshold is {threshold_minutes} minutes"
+                  )
+
+          latest("monitor/roadside.json")
+          latest("monitor/offstreet.json")
+          PY
