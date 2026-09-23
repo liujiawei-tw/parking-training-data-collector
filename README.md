@@ -1,4 +1,4 @@
-# 新莊停車資料收集器
+# 停車資料收集器
 
 此獨立 repository 用新北市政府資料開放平臺的即時資料，累積新莊區路邊格位狀態與公有路外停車場剩餘汽車位數，並提供主專案讀取最新觀測的內部 API。
 
@@ -18,6 +18,6 @@
 
 ## 開發流程
 
-`main` 保存已驗證的基底；`feature/xinzhuang-collector` 開發及檢查收集器，再經自我審查合併。資料檔與本機設定不提交 Git。此 repository 目前只有本機 Git，沒有 GitHub 遠端。
+`main` 保存已驗證的基底；`feature/collect-parking-data` 開發及檢查收集器，再經自我審查合併。資料檔與本機設定不提交 Git。此 repository 目前只有本機 Git，沒有 GitHub 遠端。
 
 啟動與 API 使用方式見 `docs/setup.md`；欄位與失敗處理見 `docs/data-contract.md`。
