@@ -6,16 +6,24 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: parking-training-monitor
+  group: parking-training-data-pipeline
   cancel-in-progress: false
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
       - name: Install rclone
         run: |
           sudo apt-get update
@@ -29,18 +37,10 @@ jobs:
           mkdir -p ~/.config/rclone
           printf '%s' "$GDRIVE_RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
 
-      - name: Check latest CSV update time
+      - name: Write freshness check script
         shell: bash
-        env:
-          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
         run: |
-          set -euo pipefail
-          remote="${GDRIVE_REMOTE_NAME:-gdrive}"
-          mkdir -p monitor
-          rclone lsjson "$remote:daily/roadside" --files-only > monitor/roadside.json
-          rclone lsjson "$remote:daily/offstreet" --files-only > monitor/offstreet.json
-
-          python - <<'PY'
+          cat > check-freshness.py <<'PY'
           import json
           from datetime import datetime, timezone
           from pathlib import Path
@@ -67,3 +67,51 @@ jobs:
           latest("monitor/roadside.json")
           latest("monitor/offstreet.json")
           PY
+
+      - name: Check latest CSV update time
+        id: freshness
+        continue-on-error: true
+        shell: bash
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          set -euo pipefail
+          remote="${GDRIVE_REMOTE_NAME:-gdrive}"
+          mkdir -p monitor
+          rclone lsjson "$remote:daily/roadside" --files-only > monitor/roadside.json
+          rclone lsjson "$remote:daily/offstreet" --files-only > monitor/offstreet.json
+          python check-freshness.py
+
+      - name: Download existing daily CSV files
+        if: steps.freshness.outcome == 'failure'
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          rclone copy "${GDRIVE_REMOTE_NAME:-gdrive}:daily" data/daily --create-empty-src-dirs || true
+
+      - name: Build collector for recovery
+        if: steps.freshness.outcome == 'failure'
+        run: mvn -q -DskipTests package
+
+      - name: Collect recovery batch
+        if: steps.freshness.outcome == 'failure'
+        run: java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar collect
+
+      - name: Upload recovered daily CSV files
+        if: steps.freshness.outcome == 'failure'
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          rclone copy data/daily "${GDRIVE_REMOTE_NAME:-gdrive}:daily" --create-empty-src-dirs
+
+      - name: Re-check latest CSV update time
+        if: steps.freshness.outcome == 'failure'
+        shell: bash
+        env:
+          GDRIVE_REMOTE_NAME: ${{ secrets.GDRIVE_REMOTE_NAME }}
+        run: |
+          set -euo pipefail
+          remote="${GDRIVE_REMOTE_NAME:-gdrive}"
+          rclone lsjson "$remote:daily/roadside" --files-only > monitor/roadside.json
+          rclone lsjson "$remote:daily/offstreet" --files-only > monitor/offstreet.json
+          python check-freshness.py

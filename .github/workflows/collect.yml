@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: parking-training-collector
+  group: parking-training-data-pipeline
   cancel-in-progress: false
 
 jobs:

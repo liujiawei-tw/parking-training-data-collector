@@ -33,7 +33,7 @@ GitHub Actions schedule
 - Rows are appended to Taiwan-date daily CSV files.
 - CSV files are stored in Google Drive through rclone.
 - A daily workflow builds a ZIP for the previous Taiwan calendar day and emails it.
-- A monitor workflow checks Google Drive freshness every 30 minutes.
+- A monitor workflow checks Google Drive freshness every 30 minutes and runs one recovery collection when data is stale.
 - GitHub stores code and workflow definitions only; generated data belongs in Google Drive.
 
 ## Data Sources
@@ -211,7 +211,8 @@ every 30 minutes
 ```
 
 The monitor runs at minute 15 and 45 each hour, so it does not race the collection workflow scheduled around minute 0 and 30.
-The monitor fails if either roadside or offstreet CSV files have not been updated within 90 minutes.
+The monitor runs one recovery collection if either roadside or offstreet CSV files have not been updated within 90 minutes.
+After recovery, the monitor checks freshness again and fails only if the data is still stale.
 
 ## Commands
 

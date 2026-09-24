@@ -12,6 +12,7 @@ The long-term product goal is to train models that estimate parking availability
 - Each collect run fetches Xinzhuang roadside and offstreet parking data.
 - The collector appends ML-ready rows to Taiwan-date CSV files.
 - rclone uploads daily CSV files to Google Drive.
+- The monitor workflow performs one recovery collection if Google Drive CSV files are stale.
 - `export-daily.yml` runs daily at `00:10 Asia/Taipei`, builds the previous Taiwan day's ZIP, uploads the ZIP/manifest to Google Drive, and emails the ZIP.
 - Google Drive is the long-term data store. GitHub stores source code and workflow definitions only.
 
@@ -37,7 +38,7 @@ The long-term product goal is to train models that estimate parking availability
 - `docs/setup.md`: setup notes for GitHub Actions, Google Drive, rclone, and secrets.
 - `.github/workflows/collect.yml`: 30-minute collection workflow.
 - `.github/workflows/export-daily.yml`: daily ZIP/email workflow.
-- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor, offset to minute 15 and 45, that fails if daily CSV files have not been updated within 90 minutes.
+- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor, offset to minute 15 and 45, that runs one recovery collection before failing when daily CSV files have not been updated within 90 minutes.
 
 ## Maintenance Notes
 
