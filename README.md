@@ -28,7 +28,7 @@ GitHub Actions schedule
 
 ## Current Design
 
-- GitHub Actions runs the collector every 5 minutes.
+- GitHub Actions runs the collector every 30 minutes.
 - Each run fetches Xinzhuang roadside and offstreet parking data from New Taipei City Open Data.
 - Rows are appended to Taiwan-date daily CSV files.
 - CSV files are stored in Google Drive through rclone.
@@ -192,7 +192,7 @@ manifest_yyyy-MM-dd.json
 Collection workflow:
 
 ```text
-every 5 minutes
+every 30 minutes
 ```
 
 Daily export workflow:
@@ -210,7 +210,7 @@ Freshness monitor workflow:
 every 30 minutes
 ```
 
-The monitor fails if either roadside or offstreet CSV files have not been updated within 45 minutes.
+The monitor fails if either roadside or offstreet CSV files have not been updated within 90 minutes.
 
 ## Commands
 

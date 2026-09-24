@@ -45,7 +45,7 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
 
-          threshold_minutes = 45
+          threshold_minutes = 90
           now = datetime.now(timezone.utc)
 
           def latest(path):

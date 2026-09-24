@@ -8,7 +8,7 @@ The long-term product goal is to train models that estimate parking availability
 
 ## Current Architecture
 
-- GitHub Actions runs `collect.yml` every 5 minutes.
+- GitHub Actions runs `collect.yml` every 30 minutes.
 - Each collect run fetches Xinzhuang roadside and offstreet parking data.
 - The collector appends ML-ready rows to Taiwan-date CSV files.
 - rclone uploads daily CSV files to Google Drive.
@@ -35,9 +35,9 @@ The long-term product goal is to train models that estimate parking availability
 - `README.md`: project purpose, data flow, Google Drive layout, workflow schedule, secrets, and full output column descriptions.
 - `docs/data-contract.md`: concise machine-readable data contract for CSV, ZIP, and manifest files.
 - `docs/setup.md`: setup notes for GitHub Actions, Google Drive, rclone, and secrets.
-- `.github/workflows/collect.yml`: 5-minute collection workflow.
+- `.github/workflows/collect.yml`: 30-minute collection workflow.
 - `.github/workflows/export-daily.yml`: daily ZIP/email workflow.
-- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor.
+- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor that fails if daily CSV files have not been updated within 90 minutes.
 
 ## Maintenance Notes
 

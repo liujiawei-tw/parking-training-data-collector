@@ -69,7 +69,7 @@ EXPORT_MAIL_TO=x0976117735@gmail.com
 
 ## Workflows
 
-`collect.yml` runs every 5 minutes:
+`collect.yml` runs every 30 minutes:
 
 ```text
 download daily CSV from Google Drive
@@ -90,5 +90,5 @@ upload ZIP and manifest to Google Drive
 
 ```text
 list latest roadside/offstreet CSV files in Google Drive
-fail if either source has not been updated within 45 minutes
+fail if either source has not been updated within 90 minutes
 ```
