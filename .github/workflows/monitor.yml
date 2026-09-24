@@ -2,7 +2,7 @@ name: Monitor parking data freshness
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "15,45 * * * *"
   workflow_dispatch:
 
 concurrency:

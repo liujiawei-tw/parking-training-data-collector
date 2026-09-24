@@ -210,6 +210,7 @@ Freshness monitor workflow:
 every 30 minutes
 ```
 
+The monitor runs at minute 15 and 45 each hour, so it does not race the collection workflow scheduled around minute 0 and 30.
 The monitor fails if either roadside or offstreet CSV files have not been updated within 90 minutes.
 
 ## Commands

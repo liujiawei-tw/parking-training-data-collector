@@ -37,7 +37,7 @@ The long-term product goal is to train models that estimate parking availability
 - `docs/setup.md`: setup notes for GitHub Actions, Google Drive, rclone, and secrets.
 - `.github/workflows/collect.yml`: 30-minute collection workflow.
 - `.github/workflows/export-daily.yml`: daily ZIP/email workflow.
-- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor that fails if daily CSV files have not been updated within 90 minutes.
+- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor, offset to minute 15 and 45, that fails if daily CSV files have not been updated within 90 minutes.
 
 ## Maintenance Notes
 

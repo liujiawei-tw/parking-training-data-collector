@@ -90,5 +90,6 @@ upload ZIP and manifest to Google Drive
 
 ```text
 list latest roadside/offstreet CSV files in Google Drive
+run at minute 15 and 45 to avoid racing the collector
 fail if either source has not been updated within 90 minutes
 ```
