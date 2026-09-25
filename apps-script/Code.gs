@@ -32,19 +32,21 @@ const CONFIG = {
 };
 
 const ROADSIDE_HEADER = [
-  'collected_at_utc', 'collected_date_taipei', 'weekday_taipei', 'hour_taipei',
-  'minute_bucket_taipei', 'source', 'area_code', 'spot_id', 'cell_id', 'road_id',
-  'road_name', 'spot_type', 'latitude', 'longitude', 'parking_status_raw',
-  'cell_status_raw', 'is_available', 'label_rule', 'source_dataset_id',
-  'source_dataset_name', 'source_update_frequency', 'source_api_response_at_utc'
+  'collected_at_utc', 'collected_date_taipei',
+  'weekday_taipei', 'hour_taipei', 'minute_bucket_taipei', 'source',
+  'area_code', 'spot_id', 'cell_id', 'road_id', 'road_name', 'spot_type',
+  'latitude', 'longitude', 'parking_status_raw', 'cell_status_raw',
+  'is_available', 'label_rule', 'source_dataset_id', 'source_dataset_name',
+  'source_update_frequency', 'source_api_response_at_utc', 'collected_at_taipei'
 ];
 
 const OFFSTREET_HEADER = [
-  'collected_at_utc', 'collected_date_taipei', 'weekday_taipei', 'hour_taipei',
-  'minute_bucket_taipei', 'source', 'lot_id', 'lot_name', 'address', 'total_car',
-  'tw97_x', 'tw97_y', 'available_car_raw', 'available_car', 'availability_ratio',
-  'is_unknown', 'label_rule', 'source_dataset_id', 'source_dataset_name',
-  'source_update_frequency', 'source_api_response_at_utc'
+  'collected_at_utc', 'collected_date_taipei',
+  'weekday_taipei', 'hour_taipei', 'minute_bucket_taipei', 'source',
+  'lot_id', 'lot_name', 'address', 'total_car', 'tw97_x', 'tw97_y',
+  'available_car_raw', 'available_car', 'availability_ratio', 'is_unknown',
+  'label_rule', 'source_dataset_id', 'source_dataset_name',
+  'source_update_frequency', 'source_api_response_at_utc', 'collected_at_taipei'
 ];
 
 function collectParkingData() {
@@ -276,7 +278,8 @@ function roadsideRow_(row, collectedAt, sourceApiResponseAtUtc) {
     meta.datasetId,
     meta.datasetName,
     meta.updateFrequency,
-    sourceApiResponseAtUtc
+    sourceApiResponseAtUtc,
+    taipeiDateTimeString_(collectedAt)
   ];
 }
 
@@ -310,7 +313,8 @@ function offstreetRow_(availability, lot, collectedAt, sourceApiResponseAtUtc) {
     meta.datasetId,
     meta.datasetName,
     meta.updateFrequency,
-    sourceApiResponseAtUtc
+    sourceApiResponseAtUtc,
+    taipeiDateTimeString_(collectedAt)
   ];
 }
 
@@ -320,13 +324,14 @@ function appendCsvRows_(folder, name, header, rows) {
   const normalized = normalizeExistingCsv_(existing, header);
   const prefix = normalized ? normalized.replace(/\s*$/, '\n') : `${csvRow_(header)}\n`;
   const body = rows.map(csvRow_).join('\n');
-  const content = body ? `${prefix}${body}\n` : prefix;
+  const content = withUtf8Bom_(body ? `${prefix}${body}\n` : prefix);
   upsertTextFile_(folder, name, content, 'text/csv');
 }
 
 function normalizeExistingCsv_(existing, header) {
   if (!existing || existing.trim().length === 0) return '';
-  const lines = existing.replace(/\s*$/, '').split(/\r?\n/);
+  const withoutBom = existing.replace(/^\uFEFF/, '');
+  const lines = withoutBom.replace(/\s*$/, '').split(/\r?\n/);
   const expectedHeader = csvRow_(header);
   if (lines[0] === expectedHeader) return lines.join('\n');
   const oldHeaderCount = lines[0].split(',').length;
@@ -337,6 +342,10 @@ function normalizeExistingCsv_(existing, header) {
   const padding = ','.repeat(newHeaderCount - oldHeaderCount);
   const paddedRows = lines.slice(1).map(line => `${line}${padding}`);
   return [expectedHeader].concat(paddedRows).join('\n');
+}
+
+function withUtf8Bom_(content) {
+  return content.startsWith('\uFEFF') ? content : `\uFEFF${content}`;
 }
 
 function upsertTextFile_(folder, name, content, mimeType) {
@@ -429,6 +438,10 @@ function roadsideAvailability_(parkingStatus) {
 
 function taipeiDateString_(date) {
   return Utilities.formatDate(date, 'Asia/Taipei', 'yyyy-MM-dd');
+}
+
+function taipeiDateTimeString_(date) {
+  return Utilities.formatDate(date, 'Asia/Taipei', "yyyy-MM-dd'T'HH:mm:ssXXX");
 }
 
 function taipeiNumber_(date, pattern) {

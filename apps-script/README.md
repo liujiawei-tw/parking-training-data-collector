@@ -22,6 +22,17 @@ source_update_frequency
 source_api_response_at_utc
 ```
 
+It also writes both collection timestamps:
+
+```text
+collected_at_utc
+collected_at_taipei
+```
+
+`collected_at_utc` uses UTC, so it appears 8 hours behind Taiwan local time. Use `collected_at_taipei` for quick manual inspection.
+
+CSV files are written with a UTF-8 BOM. This keeps Chinese text readable when ZIP exports are extracted and opened directly in Windows Excel or common text editors.
+
 New Taipei City publishes update frequency for these sources:
 
 ```text

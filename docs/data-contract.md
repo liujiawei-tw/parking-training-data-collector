@@ -2,6 +2,7 @@
 
 The exported files are daily CSV training datasets.
 File dates use `Asia/Taipei`; collection timestamps are stored in UTC.
+Apps Script CSV files are written with a UTF-8 BOM to keep Chinese text readable after ZIP extraction on Windows.
 
 The New Taipei City source pages expose official dataset update frequency, such as `每2分鐘` or `每3分鐘`.
 The row APIs do not expose an official per-row update timestamp, so this contract records the official API response time as `source_api_response_at_utc` and the official published frequency as `source_update_frequency`.
@@ -39,6 +40,7 @@ source_dataset_id
 source_dataset_name
 source_update_frequency
 source_api_response_at_utc
+collected_at_taipei
 ```
 
 Rows are filtered to Xinzhuang by `areacode=65000050`.
@@ -85,6 +87,7 @@ source_dataset_id
 source_dataset_name
 source_update_frequency
 source_api_response_at_utc
+collected_at_taipei
 ```
 
 Rows are built by matching Xinzhuang public offstreet lot metadata with the citywide live availability feed.
