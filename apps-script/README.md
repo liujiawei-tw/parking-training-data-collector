@@ -2,7 +2,7 @@
 
 This folder contains the Google Apps Script version of the parking training data pipeline.
 
-Use this when GitHub Actions scheduling is not reliable enough. GitHub should still keep the source code, but Apps Script can run the collection, monitoring, Drive storage, ZIP export, and email steps inside the Google account.
+Use this when GitHub Actions scheduling is not reliable enough. GitHub should still keep the source code, but Apps Script runs the collection, monitoring, Drive storage, ZIP export, and email steps inside the Google account.
 
 ## What Runs In Apps Script
 
@@ -100,7 +100,7 @@ monitorAndRecover() completes successfully
 exportDailyZip() creates ZIP, manifest, and email
 ```
 
-After Apps Script is confirmed, disable GitHub Actions schedules or leave workflows as manual-only backup jobs.
+GitHub Actions schedules are disabled. The legacy workflows are manual-only backup jobs and run only from the GitHub Actions `Run workflow` button.
 
 ## Quota Notes
 

@@ -35,9 +35,9 @@ Google Apps Script time-driven trigger
 - CSV files are stored directly in Google Drive.
 - A daily Apps Script trigger builds a ZIP for the previous Taiwan calendar day and emails it.
 - A monitor trigger checks Google Drive freshness every 30 minutes and runs one recovery collection when data is stale.
-- GitHub stores source code and backup workflow definitions only; generated data belongs in Google Drive.
+- GitHub stores source code and manual backup workflow definitions only; generated data belongs in Google Drive.
 
-The previous GitHub Actions workflows are still kept as backup/manual jobs during migration. Disable their schedules only after the Apps Script runner is manually verified.
+The previous GitHub Actions workflows are disabled for automatic scheduling. They are kept as manual-only backup jobs through `workflow_dispatch`.
 
 ## Data Sources
 

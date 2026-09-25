@@ -15,8 +15,8 @@ The long-term product goal is to train models that estimate parking availability
 - Apps Script writes daily CSV files directly to Google Drive.
 - Apps Script `monitorAndRecover()` performs one recovery collection if Google Drive CSV files are stale.
 - Apps Script `exportDailyZip()` runs daily near `00:10 Asia/Taipei`, builds the previous Taiwan day's ZIP, writes the ZIP/manifest to Google Drive, and emails the ZIP.
-- Google Drive is the long-term data store. GitHub stores source code and backup workflow definitions only.
-- GitHub Actions workflows are legacy backup/manual jobs during migration; do not remove them until Apps Script is verified.
+- Google Drive is the long-term data store. GitHub stores source code and manual backup workflow definitions only.
+- GitHub Actions workflows are legacy manual-only backup jobs. Automatic GitHub Actions schedules are disabled.
 
 ## Constraints
 
@@ -42,15 +42,15 @@ The long-term product goal is to train models that estimate parking availability
 - `apps-script/Code.gs`: Google Apps Script runner for collection, monitoring, recovery, ZIP export, and email.
 - `apps-script/appsscript.json`: Apps Script manifest and OAuth scopes.
 - `apps-script/README.md`: manual Apps Script setup checklist.
-- `.github/workflows/collect.yml`: legacy 30-minute collection workflow.
-- `.github/workflows/export-daily.yml`: legacy daily ZIP/email workflow.
-- `.github/workflows/monitor.yml`: legacy 30-minute Google Drive freshness monitor that can run one recovery collection before failing when daily CSV files have not been updated within 90 minutes.
+- `.github/workflows/collect.yml`: legacy manual-only collection workflow.
+- `.github/workflows/export-daily.yml`: legacy manual-only ZIP/email workflow.
+- `.github/workflows/monitor.yml`: legacy manual-only Google Drive freshness monitor that can run one recovery collection before failing when daily CSV files have not been updated within 90 minutes.
 
 ## Maintenance Notes
 
 - Prefer small, explicit changes. This pipeline should stay simple.
 - If adding new ML features, keep the old raw fields and document every new derived column in both `README.md` and `docs/data-contract.md`.
 - If label logic changes, update the `label_rule` value and document the version/meaning clearly.
-- If workflow behavior changes, verify with a manual `workflow_dispatch` run before relying on scheduled runs.
+- If workflow behavior changes, verify with a manual `workflow_dispatch` run. Do not rely on GitHub Actions schedules for production collection.
 - If Apps Script behavior changes, verify manually in Apps Script with `collectParkingData()`, `monitorAndRecover()`, and `exportDailyZip()` before relying on time-driven triggers.
 - The default branch is `main`; scheduled workflows run from the default branch.

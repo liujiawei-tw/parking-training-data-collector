@@ -1,8 +1,6 @@
 name: Export daily parking training data
 
 on:
-  schedule:
-    - cron: "10 16 * * *"
   workflow_dispatch:
 
 concurrency:

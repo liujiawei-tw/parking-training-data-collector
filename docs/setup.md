@@ -58,11 +58,11 @@ See `apps-script/README.md` for the full setup checklist.
 
 ## GitHub Actions Backup
 
-GitHub Actions workflows are kept as backup/manual jobs during the migration. Do not fully disable them until Apps Script has successfully created CSV files, completed freshness monitoring, and sent a ZIP email.
+GitHub Actions workflows are kept as manual backup jobs only. Their automatic schedules are disabled; production collection, monitoring, and daily export are handled by Google Apps Script.
 
 ## GitHub Actions Backup Secrets
 
-These secrets are only needed while the legacy GitHub Actions backup workflows remain enabled.
+These secrets are only needed if you manually run the legacy GitHub Actions backup workflows.
 
 Add repository secrets under:
 
@@ -97,7 +97,7 @@ EXPORT_MAIL_TO=x0976117735@gmail.com
 
 ## Legacy GitHub Workflows
 
-`collect.yml` runs every 30 minutes:
+`collect.yml` is manual-only:
 
 ```text
 download daily CSV from Google Drive
@@ -105,7 +105,7 @@ run collector once
 upload updated daily CSV to Google Drive
 ```
 
-`export-daily.yml` runs daily at 00:10 Asia/Taipei:
+`export-daily.yml` is manual-only:
 
 ```text
 download daily CSV from Google Drive
@@ -114,11 +114,10 @@ email ZIP
 upload ZIP and manifest to Google Drive
 ```
 
-`monitor.yml` runs every 30 minutes:
+`monitor.yml` is manual-only:
 
 ```text
 list latest roadside/offstreet CSV files in Google Drive
-run at minute 15 and 45 to avoid racing the collector
 run one recovery collection if either source has not been updated within 90 minutes
 fail only if the recovery collection does not refresh the stale data
 ```
