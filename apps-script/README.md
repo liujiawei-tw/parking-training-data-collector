@@ -11,6 +11,27 @@ Use this when GitHub Actions scheduling is not reliable enough. GitHub should st
 - `exportDailyZip()`: builds yesterday's ZIP file and emails it to `x0976117735@gmail.com`.
 - `setupTriggers()`: creates the time-driven triggers.
 
+## Source Freshness Fields
+
+The Apps Script runner appends source metadata to every new CSV row:
+
+```text
+source_dataset_id
+source_dataset_name
+source_update_frequency
+source_api_response_at_utc
+```
+
+New Taipei City publishes update frequency for these sources:
+
+```text
+roadside availability: 每2分鐘
+offstreet live availability: 每3分鐘
+offstreet lot metadata: 每日
+```
+
+The row APIs do not expose an official per-row update timestamp. `source_api_response_at_utc` records the official API response `Date` header when available, and falls back to the collection time if the header is unavailable.
+
 ## Google Drive Folder
 
 The script writes to this existing folder:

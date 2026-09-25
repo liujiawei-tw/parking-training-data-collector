@@ -11,6 +11,23 @@ const CONFIG = {
     roadside: '54A507C4-C038-41B5-BF60-BBECB9D052C6',
     lots: 'B1464EF0-9C7C-4A6F-ABF7-6BDF32847E68',
     lotAvailability: 'e09b35a5-a738-48cc-b0f5-570b67ad9c78'
+  },
+  sourceMetadata: {
+    roadside: {
+      datasetId: '54A507C4-C038-41B5-BF60-BBECB9D052C6',
+      datasetName: '新北市路邊停車空位查詢',
+      updateFrequency: '每2分鐘'
+    },
+    offstreetAvailability: {
+      datasetId: 'e09b35a5-a738-48cc-b0f5-570b67ad9c78',
+      datasetName: '新北市公有路外停車場即時賸餘車位數',
+      updateFrequency: '每3分鐘'
+    },
+    offstreetLots: {
+      datasetId: 'B1464EF0-9C7C-4A6F-ABF7-6BDF32847E68',
+      datasetName: '新北市路外公共停車場資訊',
+      updateFrequency: '每日'
+    }
   }
 };
 
@@ -18,14 +35,16 @@ const ROADSIDE_HEADER = [
   'collected_at_utc', 'collected_date_taipei', 'weekday_taipei', 'hour_taipei',
   'minute_bucket_taipei', 'source', 'area_code', 'spot_id', 'cell_id', 'road_id',
   'road_name', 'spot_type', 'latitude', 'longitude', 'parking_status_raw',
-  'cell_status_raw', 'is_available', 'label_rule'
+  'cell_status_raw', 'is_available', 'label_rule', 'source_dataset_id',
+  'source_dataset_name', 'source_update_frequency', 'source_api_response_at_utc'
 ];
 
 const OFFSTREET_HEADER = [
   'collected_at_utc', 'collected_date_taipei', 'weekday_taipei', 'hour_taipei',
   'minute_bucket_taipei', 'source', 'lot_id', 'lot_name', 'address', 'total_car',
   'tw97_x', 'tw97_y', 'available_car_raw', 'available_car', 'availability_ratio',
-  'is_unknown', 'label_rule'
+  'is_unknown', 'label_rule', 'source_dataset_id', 'source_dataset_name',
+  'source_update_frequency', 'source_api_response_at_utc'
 ];
 
 function collectParkingData() {
@@ -143,7 +162,8 @@ function collectParkingDataUnlocked_() {
   const roadsideFolder = childFolder_(dailyFolder, 'roadside');
   const offstreetFolder = childFolder_(dailyFolder, 'offstreet');
 
-  const roadsideRows = fetchRoadside_().map(row => roadsideRow_(row, collectedAt));
+  const roadside = fetchRoadside_();
+  const roadsideRows = roadside.rows.map(row => roadsideRow_(row, collectedAt, roadside.sourceApiResponseAtUtc));
   appendCsvRows_(
     roadsideFolder,
     `roadside_training_samples_${dateTaipei}.csv`,
@@ -152,13 +172,14 @@ function collectParkingDataUnlocked_() {
   );
 
   const lotsById = {};
-  for (const lot of fetchXinzhuangLots_()) {
+  for (const lot of fetchXinzhuangLots_().rows) {
     lotsById[value_(lot, 'ID')] = lot;
   }
+  const availabilityRows = fetchLotAvailability_();
   const offstreetRows = [];
-  for (const availability of fetchLotAvailability_()) {
+  for (const availability of availabilityRows.rows) {
     const lot = lotsById[value_(availability, 'ID')];
-    if (lot) offstreetRows.push(offstreetRow_(availability, lot, collectedAt));
+    if (lot) offstreetRows.push(offstreetRow_(availability, lot, collectedAt, availabilityRows.sourceApiResponseAtUtc));
   }
   if (offstreetRows.length === 0) {
     throw new Error('No Xinzhuang offstreet lots matched live availability');
@@ -186,6 +207,7 @@ function fetchLotAvailability_() {
 function fetchPages_(dataset, filter, key, areaField, expectedArea) {
   const result = [];
   const seen = {};
+  let sourceApiResponseAtUtc = new Date().toISOString();
   for (let page = 0; page < CONFIG.maxPages; page++) {
     let url = `${CONFIG.baseUrl}${dataset}/json?page=${page}&size=${CONFIG.pageSize}`;
     if (filter) url += `&$filter=${encodeURIComponent(filter).replace(/\+/g, '%20')}`;
@@ -199,6 +221,7 @@ function fetchPages_(dataset, filter, key, areaField, expectedArea) {
     });
     const status = response.getResponseCode();
     if (status !== 200) throw new Error(`NTPC HTTP ${status} on page ${page}`);
+    sourceApiResponseAtUtc = responseDate_(response);
     const rows = JSON.parse(response.getContentText('UTF-8'));
     if (!Array.isArray(rows)) throw new Error(`NTPC returned non-array page ${page}`);
     for (const row of rows) {
@@ -214,14 +237,23 @@ function fetchPages_(dataset, filter, key, areaField, expectedArea) {
     }
     if (rows.length < CONFIG.pageSize) {
       if (result.length === 0) throw new Error(`NTPC returned no rows for ${dataset}`);
-      return result;
+      return { rows: result, sourceApiResponseAtUtc };
     }
   }
   throw new Error(`NTPC pagination exceeded ${CONFIG.maxPages} pages for ${dataset}`);
 }
 
-function roadsideRow_(row, collectedAt) {
+function responseDate_(response) {
+  const headers = response.getHeaders();
+  const value = headers.Date || headers.date;
+  if (!value) return new Date().toISOString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+function roadsideRow_(row, collectedAt, sourceApiResponseAtUtc) {
   const parkingStatus = value_(row, 'parkingstatus');
+  const meta = CONFIG.sourceMetadata.roadside;
   return [
     collectedAt.toISOString(),
     taipeiDateString_(collectedAt),
@@ -240,14 +272,19 @@ function roadsideRow_(row, collectedAt) {
     value_(row, 'parkingstatus'),
     value_(row, 'cellstatus'),
     roadsideAvailability_(parkingStatus),
-    'parkingstatus_0_available_1_unavailable_keep_raw'
+    'parkingstatus_0_available_1_unavailable_keep_raw',
+    meta.datasetId,
+    meta.datasetName,
+    meta.updateFrequency,
+    sourceApiResponseAtUtc
   ];
 }
 
-function offstreetRow_(availability, lot, collectedAt) {
+function offstreetRow_(availability, lot, collectedAt, sourceApiResponseAtUtc) {
   const total = integer_(lot, 'TOTALCAR');
   const available = integer_(availability, 'AVAILABLECAR');
   const unknown = available === null || available < 0;
+  const meta = CONFIG.sourceMetadata.offstreetAvailability;
   let ratio = '';
   if (!unknown && total !== null && total > 0) {
     ratio = (available / total).toFixed(6);
@@ -269,17 +306,37 @@ function offstreetRow_(availability, lot, collectedAt) {
     unknown ? '' : String(available),
     ratio,
     String(unknown),
-    'available_car_negative_unknown_keep_raw'
+    'available_car_negative_unknown_keep_raw',
+    meta.datasetId,
+    meta.datasetName,
+    meta.updateFrequency,
+    sourceApiResponseAtUtc
   ];
 }
 
 function appendCsvRows_(folder, name, header, rows) {
   const file = findFile_(folder, name);
   const existing = file ? file.getBlob().getDataAsString('UTF-8') : '';
-  const prefix = existing && existing.trim().length > 0 ? existing.replace(/\s*$/, '\n') : `${csvRow_(header)}\n`;
+  const normalized = normalizeExistingCsv_(existing, header);
+  const prefix = normalized ? normalized.replace(/\s*$/, '\n') : `${csvRow_(header)}\n`;
   const body = rows.map(csvRow_).join('\n');
   const content = body ? `${prefix}${body}\n` : prefix;
   upsertTextFile_(folder, name, content, 'text/csv');
+}
+
+function normalizeExistingCsv_(existing, header) {
+  if (!existing || existing.trim().length === 0) return '';
+  const lines = existing.replace(/\s*$/, '').split(/\r?\n/);
+  const expectedHeader = csvRow_(header);
+  if (lines[0] === expectedHeader) return lines.join('\n');
+  const oldHeaderCount = lines[0].split(',').length;
+  const newHeaderCount = header.length;
+  if (oldHeaderCount > newHeaderCount) {
+    throw new Error(`Existing CSV has more columns than expected: ${oldHeaderCount} > ${newHeaderCount}`);
+  }
+  const padding = ','.repeat(newHeaderCount - oldHeaderCount);
+  const paddedRows = lines.slice(1).map(line => `${line}${padding}`);
+  return [expectedHeader].concat(paddedRows).join('\n');
 }
 
 function upsertTextFile_(folder, name, content, mimeType) {

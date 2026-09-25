@@ -27,6 +27,7 @@ The long-term product goal is to train models that estimate parking availability
 - Keep workflow secrets in GitHub Repository Secrets only.
 - Preserve source raw fields. Do not replace raw source status values with derived labels.
 - Official feeds do not expose per-row source update timestamps. `collected_at_utc` is the collector's observation time, not an official update time.
+- Apps Script records official source update frequency and API response time in `source_update_frequency` and `source_api_response_at_utc`. Do not describe these as per-row official update timestamps.
 - `AVAILABLECAR` negative values must be treated as unknown, not zero.
 - Roadside availability labels are provisional. Current rule is `parkingstatus=0 -> true`, `parkingstatus=1 -> false`, other values blank. Keep `parking_status_raw` and `cell_status_raw` so the rule can be corrected later.
 - Roadside rows must remain filtered to Xinzhuang by `areacode=65000050`.

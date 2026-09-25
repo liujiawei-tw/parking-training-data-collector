@@ -69,6 +69,7 @@ parking-training-data/
 
 Daily files use the `Asia/Taipei` calendar date in the file name.
 Collection timestamps inside the files are stored in UTC.
+Official source pages publish update frequency. The current NTPC row APIs do not expose an official per-row update timestamp, so the CSV records both `source_update_frequency` and `source_api_response_at_utc`.
 
 | File | Description |
 | --- | --- |
@@ -107,6 +108,10 @@ Rows are filtered to Xinzhuang by `areacode=65000050`.
 | `cell_status_raw` | Raw source field `cellstatus`. | Preserve raw status/context. |
 | `is_available` | Derived availability label. Current rule: `0=true`, `1=false`, other values blank. | Training label candidate. |
 | `label_rule` | Text description of the rule used to derive `is_available`. | Data lineage. |
+| `source_dataset_id` | Official New Taipei City dataset ID for the roadside source. | Source lineage. |
+| `source_dataset_name` | Official New Taipei City dataset name. | Source lineage. |
+| `source_update_frequency` | Official published update frequency, currently `每2分鐘` for roadside availability. | Expected freshness reference. |
+| `source_api_response_at_utc` | UTC time from the official API response `Date` header, or collection time fallback if unavailable. | Source response time; not a per-row official update timestamp. |
 
 Current roadside label rule:
 
@@ -147,6 +152,10 @@ Rows are built by matching Xinzhuang public offstreet lot metadata with the city
 | `availability_ratio` | `available_car / total_car`, blank when unavailable. | Normalized training target candidate. |
 | `is_unknown` | `true` when `available_car_raw` is missing, invalid, or negative. | Data quality flag. |
 | `label_rule` | Text description of the rule used to derive numeric fields. | Data lineage. |
+| `source_dataset_id` | Official New Taipei City dataset ID for the live offstreet availability source. | Source lineage. |
+| `source_dataset_name` | Official New Taipei City dataset name. | Source lineage. |
+| `source_update_frequency` | Official published update frequency, currently `每3分鐘` for offstreet live availability. | Expected freshness reference. |
+| `source_api_response_at_utc` | UTC time from the official API response `Date` header, or collection time fallback if unavailable. | Source response time; not a per-row official update timestamp. |
 
 Offstreet raw values are preserved.
 Negative `available_car_raw` values are treated as unknown for numeric training columns:

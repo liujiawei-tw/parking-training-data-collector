@@ -1,7 +1,10 @@
-# Data Contract v0.2
+# Data Contract v0.3
 
 The exported files are daily CSV training datasets.
 File dates use `Asia/Taipei`; collection timestamps are stored in UTC.
+
+The New Taipei City source pages expose official dataset update frequency, such as `每2分鐘` or `每3分鐘`.
+The row APIs do not expose an official per-row update timestamp, so this contract records the official API response time as `source_api_response_at_utc` and the official published frequency as `source_update_frequency`.
 
 ## Roadside File
 
@@ -32,6 +35,10 @@ parking_status_raw
 cell_status_raw
 is_available
 label_rule
+source_dataset_id
+source_dataset_name
+source_update_frequency
+source_api_response_at_utc
 ```
 
 Rows are filtered to Xinzhuang by `areacode=65000050`.
@@ -74,6 +81,10 @@ available_car
 availability_ratio
 is_unknown
 label_rule
+source_dataset_id
+source_dataset_name
+source_update_frequency
+source_api_response_at_utc
 ```
 
 Rows are built by matching Xinzhuang public offstreet lot metadata with the citywide live availability feed.
