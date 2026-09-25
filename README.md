@@ -18,23 +18,26 @@ Example model goals:
 The project intentionally keeps the pipeline simple:
 
 ```text
-GitHub Actions schedule
+Google Apps Script time-driven trigger
   -> fetch New Taipei City parking data
   -> transform rows into ML-ready CSV
-  -> upload daily CSV files to Google Drive
+  -> append daily CSV files in Google Drive
   -> build daily ZIP export
   -> email the ZIP
 ```
 
 ## Current Design
 
-- GitHub Actions runs the collector every 30 minutes.
+- Google Apps Script is the preferred long-running scheduler because GitHub Actions schedules can be delayed or skipped.
+- Apps Script runs the collector every 30 minutes.
 - Each run fetches Xinzhuang roadside and offstreet parking data from New Taipei City Open Data.
 - Rows are appended to Taiwan-date daily CSV files.
-- CSV files are stored in Google Drive through rclone.
-- A daily workflow builds a ZIP for the previous Taiwan calendar day and emails it.
-- A monitor workflow checks Google Drive freshness every 30 minutes and runs one recovery collection when data is stale.
-- GitHub stores code and workflow definitions only; generated data belongs in Google Drive.
+- CSV files are stored directly in Google Drive.
+- A daily Apps Script trigger builds a ZIP for the previous Taiwan calendar day and emails it.
+- A monitor trigger checks Google Drive freshness every 30 minutes and runs one recovery collection when data is stale.
+- GitHub stores source code and backup workflow definitions only; generated data belongs in Google Drive.
+
+The previous GitHub Actions workflows are still kept as backup/manual jobs during migration. Disable their schedules only after the Apps Script runner is manually verified.
 
 ## Data Sources
 
@@ -46,7 +49,8 @@ The collector uses these New Taipei City Open Data datasets:
 
 ## Google Drive Layout
 
-The rclone remote should point at the `parking-training-data` folder as its root.
+The Apps Script `CONFIG.rootFolderId` points at the `parking-training-data` folder.
+Legacy GitHub Actions jobs can still use an rclone remote that points at the same folder as its root.
 
 ```text
 parking-training-data/
@@ -187,30 +191,50 @@ offstreet_training_samples_yyyy-MM-dd.csv
 manifest_yyyy-MM-dd.json
 ```
 
+## Apps Script Runner
+
+The Apps Script implementation lives in:
+
+```text
+apps-script/
+  Code.gs
+  appsscript.json
+  README.md
+```
+
+Main functions:
+
+| Function | Purpose |
+| --- | --- |
+| `collectParkingData()` | Fetch one batch and append it to today's roadside/offstreet CSV files. |
+| `monitorAndRecover()` | Check freshness; if data is stale, run one recovery collection and check again. |
+| `exportDailyZip()` | ZIP yesterday's CSV files and manifest, then email the ZIP. |
+| `setupTriggers()` | Create production time-driven triggers. |
+
+Manual setup instructions are in `apps-script/README.md`.
+
 ## Schedule
 
-Collection workflow:
+Collection trigger:
 
 ```text
 every 30 minutes
 ```
 
-Daily export workflow:
+Daily export trigger:
 
 ```text
-UTC 16:10 every day
-Asia/Taipei 00:10 every day
+near Asia/Taipei 00:10 every day
 ```
 
 The daily export sends the previous Taiwan calendar day's ZIP.
 
-Freshness monitor workflow:
+Freshness monitor trigger:
 
 ```text
 every 30 minutes
 ```
 
-The monitor runs at minute 15 and 45 each hour, so it does not race the collection workflow scheduled around minute 0 and 30.
 The monitor runs one recovery collection if either roadside or offstreet CSV files have not been updated within 90 minutes.
 After recovery, the monitor checks freshness again and fails only if the data is still stale.
 
@@ -234,7 +258,9 @@ Build and email a specific date:
 java -jar target/parking-data-collector-0.1.0-SNAPSHOT.jar export-daily 2026-09-23
 ```
 
-## GitHub Secrets
+## GitHub Actions Backup Secrets
+
+These secrets are only needed for the legacy GitHub Actions backup workflows.
 
 Create these in the GitHub repository:
 
@@ -263,9 +289,9 @@ Use the actual folder ID shown in the folder URL after opening it:
 
 The rclone config should already include this as `root_folder_id`.
 
-## rclone Setup Summary
+## rclone Setup Summary For GitHub Actions Backup
 
-Use rclone on your own computer once to authorize Google Drive.
+Use rclone on your own computer once to authorize Google Drive if you keep the legacy GitHub Actions backup workflows enabled.
 
 ```powershell
 rclone config

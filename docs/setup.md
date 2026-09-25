@@ -1,6 +1,6 @@
 # Setup
 
-This project now runs as a GitHub Actions data pipeline.
+This project is migrating from a GitHub Actions data pipeline to a Google Apps Script runner because GitHub Actions schedules can be delayed or skipped.
 
 ## Repository
 
@@ -34,7 +34,35 @@ gdrive:exports
 gdrive:manifests
 ```
 
-## GitHub Secrets
+## Google Apps Script Runner
+
+Use the files in:
+
+```text
+apps-script/
+```
+
+Setup summary:
+
+```text
+create a standalone Apps Script project
+copy apps-script/appsscript.json into the Apps Script manifest
+copy apps-script/Code.gs into the editor
+run collectParkingData() manually and approve permissions
+run monitorAndRecover() manually
+run exportDailyZip() manually if you want to test email
+run setupTriggers() once to create production triggers
+```
+
+See `apps-script/README.md` for the full setup checklist.
+
+## GitHub Actions Backup
+
+GitHub Actions workflows are kept as backup/manual jobs during the migration. Do not fully disable them until Apps Script has successfully created CSV files, completed freshness monitoring, and sent a ZIP email.
+
+## GitHub Actions Backup Secrets
+
+These secrets are only needed while the legacy GitHub Actions backup workflows remain enabled.
 
 Add repository secrets under:
 
@@ -67,7 +95,7 @@ EXPORT_MAIL_TO=x0976117735@gmail.com
 `SMTP_PASSWORD` must be a Gmail App Password, not the normal Google password.
 `GDRIVE_RCLONE_CONFIG` must be the full rclone config file content.
 
-## Workflows
+## Legacy GitHub Workflows
 
 `collect.yml` runs every 30 minutes:
 

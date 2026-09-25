@@ -8,13 +8,15 @@ The long-term product goal is to train models that estimate parking availability
 
 ## Current Architecture
 
-- GitHub Actions runs `collect.yml` every 30 minutes.
+- Google Apps Script is the preferred long-running scheduler.
+- Apps Script runs `collectParkingData()` every 30 minutes.
 - Each collect run fetches Xinzhuang roadside and offstreet parking data.
 - The collector appends ML-ready rows to Taiwan-date CSV files.
-- rclone uploads daily CSV files to Google Drive.
-- The monitor workflow performs one recovery collection if Google Drive CSV files are stale.
-- `export-daily.yml` runs daily at `00:10 Asia/Taipei`, builds the previous Taiwan day's ZIP, uploads the ZIP/manifest to Google Drive, and emails the ZIP.
-- Google Drive is the long-term data store. GitHub stores source code and workflow definitions only.
+- Apps Script writes daily CSV files directly to Google Drive.
+- Apps Script `monitorAndRecover()` performs one recovery collection if Google Drive CSV files are stale.
+- Apps Script `exportDailyZip()` runs daily near `00:10 Asia/Taipei`, builds the previous Taiwan day's ZIP, writes the ZIP/manifest to Google Drive, and emails the ZIP.
+- Google Drive is the long-term data store. GitHub stores source code and backup workflow definitions only.
+- GitHub Actions workflows are legacy backup/manual jobs during migration; do not remove them until Apps Script is verified.
 
 ## Constraints
 
@@ -35,10 +37,13 @@ The long-term product goal is to train models that estimate parking availability
 
 - `README.md`: project purpose, data flow, Google Drive layout, workflow schedule, secrets, and full output column descriptions.
 - `docs/data-contract.md`: concise machine-readable data contract for CSV, ZIP, and manifest files.
-- `docs/setup.md`: setup notes for GitHub Actions, Google Drive, rclone, and secrets.
-- `.github/workflows/collect.yml`: 30-minute collection workflow.
-- `.github/workflows/export-daily.yml`: daily ZIP/email workflow.
-- `.github/workflows/monitor.yml`: 30-minute Google Drive freshness monitor, offset to minute 15 and 45, that runs one recovery collection before failing when daily CSV files have not been updated within 90 minutes.
+- `docs/setup.md`: setup notes for Apps Script, GitHub Actions backup, Google Drive, rclone, and secrets.
+- `apps-script/Code.gs`: Google Apps Script runner for collection, monitoring, recovery, ZIP export, and email.
+- `apps-script/appsscript.json`: Apps Script manifest and OAuth scopes.
+- `apps-script/README.md`: manual Apps Script setup checklist.
+- `.github/workflows/collect.yml`: legacy 30-minute collection workflow.
+- `.github/workflows/export-daily.yml`: legacy daily ZIP/email workflow.
+- `.github/workflows/monitor.yml`: legacy 30-minute Google Drive freshness monitor that can run one recovery collection before failing when daily CSV files have not been updated within 90 minutes.
 
 ## Maintenance Notes
 
@@ -46,4 +51,5 @@ The long-term product goal is to train models that estimate parking availability
 - If adding new ML features, keep the old raw fields and document every new derived column in both `README.md` and `docs/data-contract.md`.
 - If label logic changes, update the `label_rule` value and document the version/meaning clearly.
 - If workflow behavior changes, verify with a manual `workflow_dispatch` run before relying on scheduled runs.
+- If Apps Script behavior changes, verify manually in Apps Script with `collectParkingData()`, `monitorAndRecover()`, and `exportDailyZip()` before relying on time-driven triggers.
 - The default branch is `main`; scheduled workflows run from the default branch.
