@@ -36,9 +36,12 @@ const ROADSIDE_HEADER = [
   'weekday_taipei', 'hour_taipei', 'minute_bucket_taipei', 'source',
   'area_code', 'spot_id', 'cell_id', 'road_id', 'road_name', 'spot_type',
   'latitude', 'longitude', 'parking_status_raw', 'cell_status_raw',
-  'is_available', 'label_rule', 'source_dataset_id', 'source_dataset_name',
-  'source_update_frequency', 'source_api_response_at_utc', 'collected_at_taipei'
+  'is_available', 'availability_state', 'not_confirmed_reason', 'label_rule',
+  'source_dataset_id', 'source_dataset_name', 'source_update_frequency',
+  'source_api_response_at_utc', 'collected_at_taipei'
 ];
+
+const ROADSIDE_LABEL_RULE = 'ntpc_roadside_confirmed_available_status_2_else_false_v1';
 
 const OFFSTREET_HEADER = [
   'collected_at_utc', 'collected_date_taipei',
@@ -255,6 +258,7 @@ function responseDate_(response) {
 
 function roadsideRow_(row, collectedAt, sourceApiResponseAtUtc) {
   const parkingStatus = value_(row, 'parkingstatus');
+  const label = roadsideLabel_(parkingStatus);
   const meta = CONFIG.sourceMetadata.roadside;
   return [
     collectedAt.toISOString(),
@@ -273,8 +277,10 @@ function roadsideRow_(row, collectedAt, sourceApiResponseAtUtc) {
     value_(row, 'longitude'),
     value_(row, 'parkingstatus'),
     value_(row, 'cellstatus'),
-    roadsideAvailability_(parkingStatus),
-    'parkingstatus_0_available_1_unavailable_keep_raw',
+    label.isAvailable,
+    label.availabilityState,
+    label.notConfirmedReason,
+    ROADSIDE_LABEL_RULE,
     meta.datasetId,
     meta.datasetName,
     meta.updateFrequency,
@@ -430,10 +436,20 @@ function integer_(row, key) {
   return Number.isNaN(value) ? null : value;
 }
 
-function roadsideAvailability_(parkingStatus) {
-  if (parkingStatus === '0') return 'true';
-  if (parkingStatus === '1') return 'false';
-  return '';
+function roadsideLabel_(parkingStatus) {
+  if (parkingStatus === '1') {
+    return {isAvailable: 'false', availabilityState: 'OCCUPIED', notConfirmedReason: 'occupied_status'};
+  }
+  if (parkingStatus === '2') {
+    return {isAvailable: 'true', availabilityState: 'AVAILABLE', notConfirmedReason: ''};
+  }
+  if (parkingStatus === '3') {
+    return {isAvailable: 'false', availabilityState: 'RESTRICTED_OR_CLOSED', notConfirmedReason: 'restricted_or_closed_status'};
+  }
+  if (parkingStatus === '5') {
+    return {isAvailable: 'false', availabilityState: 'UNKNOWN_OR_SPECIAL', notConfirmedReason: 'unknown_or_special_status'};
+  }
+  return {isAvailable: 'false', availabilityState: 'UNKNOWN', notConfirmedReason: 'unverified_parkingstatus'};
 }
 
 function taipeiDateString_(date) {

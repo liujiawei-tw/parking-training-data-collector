@@ -30,7 +30,11 @@ public class TrainingDatasetService {
             "collected_at_utc", "collected_date_taipei", "weekday_taipei", "hour_taipei",
             "minute_bucket_taipei", "source", "area_code", "spot_id", "cell_id", "road_id",
             "road_name", "spot_type", "latitude", "longitude", "parking_status_raw",
-            "cell_status_raw", "is_available", "label_rule");
+            "cell_status_raw", "is_available", "availability_state", "not_confirmed_reason",
+            "label_rule");
+
+    private static final String ROADSIDE_LABEL_RULE =
+            "ntpc_roadside_confirmed_available_status_2_else_false_v1";
 
     private static final List<String> OFFSTREET_HEADER = List.of(
             "collected_at_utc", "collected_date_taipei", "weekday_taipei", "hour_taipei",
@@ -108,6 +112,7 @@ public class TrainingDatasetService {
 
     private List<String> roadsideRow(Map<String, Object> row, ZonedDateTime collectedAt) {
         String parkingStatus = NtpcClient.value(row, "parkingstatus");
+        RoadsideLabel label = roadsideLabel(parkingStatus);
         return List.of(
                 collectedAt.toInstant().toString(),
                 DATE.format(collectedAt),
@@ -125,8 +130,10 @@ public class TrainingDatasetService {
                 value(row, "longitude"),
                 value(row, "parkingstatus"),
                 value(row, "cellstatus"),
-                roadsideAvailability(parkingStatus),
-                "parkingstatus_0_available_1_unavailable_keep_raw");
+                label.isAvailable(),
+                label.availabilityState(),
+                label.notConfirmedReason(),
+                ROADSIDE_LABEL_RULE);
     }
 
     private List<String> offstreetRow(Map<String, Object> availability, Map<String, Object> lot,
@@ -205,15 +212,26 @@ public class TrainingDatasetService {
         return outputDir.resolve("manifests").resolve("manifest_" + DATE.format(date) + ".json");
     }
 
-    private static String roadsideAvailability(String parkingStatus) {
+    static RoadsideLabel roadsideLabel(String parkingStatus) {
         if ("0".equals(parkingStatus)) {
-            return "true";
+            return new RoadsideLabel("false", "UNKNOWN", "unverified_parkingstatus");
         }
         if ("1".equals(parkingStatus)) {
-            return "false";
+            return new RoadsideLabel("false", "OCCUPIED", "occupied_status");
         }
-        return "";
+        if ("2".equals(parkingStatus)) {
+            return new RoadsideLabel("true", "AVAILABLE", "");
+        }
+        if ("3".equals(parkingStatus)) {
+            return new RoadsideLabel("false", "RESTRICTED_OR_CLOSED", "restricted_or_closed_status");
+        }
+        if ("5".equals(parkingStatus)) {
+            return new RoadsideLabel("false", "UNKNOWN_OR_SPECIAL", "unknown_or_special_status");
+        }
+        return new RoadsideLabel("false", "UNKNOWN", "unverified_parkingstatus");
     }
+
+    record RoadsideLabel(String isAvailable, String availabilityState, String notConfirmedReason) {}
 
     private static String value(Map<String, Object> row, String key) {
         String value = NtpcClient.value(row, key);
