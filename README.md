@@ -108,8 +108,10 @@ Rows are filtered to Xinzhuang by `areacode=65000050`.
 | `longitude` | Source longitude. | Location feature. |
 | `parking_status_raw` | Raw source field `parkingstatus`. | Preserve raw label source. |
 | `cell_status_raw` | Raw source field `cellstatus`. | Preserve raw status/context. |
-| `is_available` | Derived availability label. Current rule: `0=true`, `1=false`, other values blank. | Training label candidate. |
-| `label_rule` | Text description of the rule used to derive `is_available`. | Data lineage. |
+| `is_available` | Derived conservative binary label. Current rule: only `parkingstatus=2` is `true`; all other values are `false`. | Training label candidate for confirmed availability. |
+| `availability_state` | Canonical roadside state derived from `parking_status_raw`. | Feature/label audit field. |
+| `not_confirmed_reason` | Reason a row is not confirmed available, such as `occupied_status`, `restricted_or_closed_status`, or `unknown_or_special_status`. | Conservative negative audit field. |
+| `label_rule` | Versioned rule used to derive `is_available`, `availability_state`, and `not_confirmed_reason`. | Data lineage. |
 | `source_dataset_id` | Official New Taipei City dataset ID for the roadside source. | Source lineage. |
 | `source_dataset_name` | Official New Taipei City dataset name. | Source lineage. |
 | `source_update_frequency` | Official published update frequency, currently `每2分鐘` for roadside availability. | Expected freshness reference. |
@@ -119,12 +121,15 @@ Rows are filtered to Xinzhuang by `areacode=65000050`.
 Current roadside label rule:
 
 ```text
-parkingstatus 0 -> is_available true
-parkingstatus 1 -> is_available false
-other values -> blank
+label_rule ntpc_roadside_confirmed_available_status_2_else_false_v1
+parkingstatus 1 -> availability_state OCCUPIED, is_available false
+parkingstatus 2 -> availability_state AVAILABLE, is_available true
+parkingstatus 3 -> availability_state RESTRICTED_OR_CLOSED, is_available false, not_confirmed_reason restricted_or_closed_status
+parkingstatus 5 -> availability_state UNKNOWN_OR_SPECIAL, is_available false, not_confirmed_reason unknown_or_special_status
+other values -> availability_state UNKNOWN, is_available false, not_confirmed_reason unverified_parkingstatus
 ```
 
-The raw status fields are preserved so the label rule can be corrected later without losing original data.
+The raw status fields are preserved so the label rule can be corrected later without losing original data. This mapping is based on downstream S3-010 validation in `taiwan-parking-forecast`: official NTPC CSV distribution, collector samples, TDX `SpotStatus` cross-check, and NTPC front-end legend evidence. This binary label means "confirmed generally available"; `false` includes occupied, restricted, special, unknown, and unverified statuses, so it must not be described as a guaranteed physical no-space observation.
 
 ## Offstreet CSV Columns
 

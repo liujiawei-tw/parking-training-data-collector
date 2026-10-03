@@ -1,4 +1,4 @@
-# Data Contract v0.3
+# Data Contract v0.4
 
 The exported files are daily CSV training datasets.
 File dates use `Asia/Taipei`; collection timestamps are stored in UTC.
@@ -35,6 +35,8 @@ longitude
 parking_status_raw
 cell_status_raw
 is_available
+availability_state
+not_confirmed_reason
 label_rule
 source_dataset_id
 source_dataset_name
@@ -48,12 +50,15 @@ Rows are filtered to Xinzhuang by `areacode=65000050`.
 Current roadside label rule:
 
 ```text
-parkingstatus 0 -> is_available true
-parkingstatus 1 -> is_available false
-other values -> blank
+label_rule ntpc_roadside_confirmed_available_status_2_else_false_v1
+parkingstatus 1 -> availability_state OCCUPIED, is_available false
+parkingstatus 2 -> availability_state AVAILABLE, is_available true
+parkingstatus 3 -> availability_state RESTRICTED_OR_CLOSED, is_available false, not_confirmed_reason restricted_or_closed_status
+parkingstatus 5 -> availability_state UNKNOWN_OR_SPECIAL, is_available false, not_confirmed_reason unknown_or_special_status
+other values -> availability_state UNKNOWN, is_available false, not_confirmed_reason unverified_parkingstatus
 ```
 
-The raw status fields are preserved because the rule may need to be corrected after validating the official status values.
+The raw status fields are preserved because the rule may need to be corrected after validating official status values. This binary label means "confirmed generally available"; `false` includes occupied, restricted, special, unknown, and unverified statuses, so it must not be described as a guaranteed physical no-space observation.
 
 ## Offstreet File
 
